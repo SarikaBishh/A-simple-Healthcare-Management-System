@@ -1,0 +1,386 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <conio.h>
+
+#define MAX_USERS        100
+#define MAX_DOCTORS      100
+#define MAX_APPOINTMENTS 100
+#define MAX_LEN          100
+
+struct User {
+    char username[MAX_LEN];
+    char password[MAX_LEN];
+    int  role;                 // 1‑Admin | 2‑Doctor | 3‑Patient
+    char id[MAX_LEN];
+};
+
+struct Doctor {
+    char name[MAX_LEN];
+    char specialization[MAX_LEN];
+    char timeSchedule[MAX_LEN];
+    int  charge;
+    char id[MAX_LEN];
+};
+
+struct Appointment {
+    char patientName[MAX_LEN];
+    char patientUsername[MAX_LEN];
+    char disease[MAX_LEN];
+    char doctorName[MAX_LEN];
+    char time[MAX_LEN];
+    int  charge;
+};
+
+struct User        users[MAX_USERS];
+struct Doctor      doctors[MAX_DOCTORS];
+struct Appointment appointments[MAX_APPOINTMENTS];
+
+char currentUsername[MAX_LEN] = "";
+int  currentRole = 0;
+
+int userCount = 0;
+int doctorCount = 0;
+int appointmentCount = 0;
+
+void inputPassword(char password[]);
+void registerUser(void);
+int  loginUser(int *role);
+void afterLoginMenu(int role);
+void adminMenu(void);
+void doctorMenu(void);
+void patientMenu(void);
+void addDoctor(void);
+void viewDoctors(void);
+void initializeDoctors(void);
+void billingMenu(void);
+void appointmentMenu(void);
+void loadUsers(void);
+void saveUsers(void);
+void loadAppointments(void);
+void saveAppointments(void);
+
+int main(void) {
+    int choice, loggedIn = 0;
+    loadUsers();
+    loadAppointments();
+    initializeDoctors();
+
+    while (1) {
+        printf("\n=== Health Care Management System ===\n");
+        printf("1. Register  (Admin / Doctor / Patient)\n");
+        printf("2. Login     (Role: Specific Actions)\n");
+        printf("3. Exit\n");
+        printf("Choose an option: ");
+        if (scanf("%d", &choice) != 1) { fflush(stdin); continue; }
+        while (getchar() != '\n');
+
+        switch (choice) {
+            case 1: registerUser(); break;
+            case 2: loggedIn = loginUser(&currentRole);
+                    if (loggedIn) {
+                        printf("Login successful!\n");
+                        afterLoginMenu(currentRole);
+                    } else {
+                        printf("Invalid username or password.\n");
+                    }
+                    break;
+            case 3: puts("Exiting system."); return 0;
+            default: puts("Invalid option. Try again.");
+        }
+    }
+}
+
+void registerUser(void) {
+    if (userCount >= MAX_USERS) { puts("User limit reached."); return; }
+
+    printf("\n=== User Registration ===\n");
+    printf("Select Role to Register:\n");
+    printf("1.Admin\n2.Doctor\n3.Patient\n");
+    printf("Enter choice: ");
+    scanf("%d", &users[userCount].role);
+    while (getchar() != '\n');
+
+    switch (users[userCount].role) {
+        case 1: puts("--- Registering as Admin ---");  break;
+        case 2: puts("--- Registering as Doctor ---"); break;
+        case 3: puts("--- Registering as Patient ---");break;
+        default: puts("Invalid role selected.");       return;
+    }
+
+    printf("Enter username: ");
+    scanf("%s", users[userCount].username);
+    while (getchar() != '\n');
+
+    inputPassword(users[userCount].password);
+
+    sprintf(users[userCount].id, "U%03d", userCount + 1);
+    printf("Assigned ID: %s\n", users[userCount].id);
+
+    userCount++;
+    saveUsers();
+    puts("Registration successful!");
+}
+
+int loginUser(int *role) {
+    char uname[MAX_LEN], pass[MAX_LEN];
+    printf("Enter username: ");
+    scanf("%s", uname); while (getchar() != '\n');
+
+    inputPassword(pass);
+
+    for (int i = 0; i < userCount; ++i) {
+        if (strcmp(uname, users[i].username) == 0 &&
+            strcmp(pass, users[i].password) == 0) {
+            *role = users[i].role;
+            strcpy(currentUsername, users[i].username);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void afterLoginMenu(int role) {
+    switch (role) {
+        case 1: adminMenu(); break;
+        case 2: doctorMenu(); break;
+        case 3: patientMenu(); break;
+        default: puts("Unknown role.");
+    }
+}
+
+void adminMenu(void) {
+    int choice;
+    while (1) {
+        puts("\n--- Admin Menu ---");
+        puts("1. Add Doctor");
+        puts("2. View Doctors");
+        puts("3. View Appointments");
+        puts("4. Logout");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice)!=1){ fflush(stdin); continue; }
+        while (getchar()!='\n');
+
+        switch (choice) {
+            case 1: addDoctor(); break;
+            case 2: viewDoctors(); break;
+            case 3: appointmentMenu(); break;
+            case 4: return;
+            default: puts("Invalid choice.");
+        }
+    }
+}
+
+void doctorMenu(void) {
+    puts("\n--- Doctor Menu ---");
+    appointmentMenu();
+}
+
+void patientMenu(void) {
+    int choice;
+    while (1) {
+        puts("\n--- Patient Menu ---");
+        puts("1. View Doctors");
+        puts("2. Book Appointment & Billing");
+        puts("3. View My Appointments");
+        puts("4. Logout");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice)!=1){ fflush(stdin); continue; }
+        while (getchar()!='\n');
+
+        switch (choice) {
+            case 1: viewDoctors(); break;
+            case 2: billingMenu(); break;
+            case 3: appointmentMenu(); break;
+            case 4: return;
+            default: puts("Invalid choice.");
+        }
+    }
+}
+
+void inputPassword(char password[]) {
+    int i = 0; char ch;
+    printf("Enter password: ");
+    while (1) {
+        ch = getch();
+        if (ch == 13) { password[i]='\0'; putchar('\n'); break; }
+        else if (ch == 8 && i>0) { i--; printf("\b \b"); }
+        else if (ch != 8) { password[i++] = ch; putchar('*'); }
+    }
+}
+
+void addDoctor(void) {
+    if (doctorCount >= MAX_DOCTORS) { puts("Doctor limit reached."); return; }
+
+    struct Doctor *d = &doctors[doctorCount];
+
+    printf("Enter Doctor Name: ");
+    fgets(d->name, MAX_LEN, stdin); d->name[strcspn(d->name,"\n")] = 0;
+
+    printf("Enter Specialization: ");
+    fgets(d->specialization, MAX_LEN, stdin);
+    d->specialization[strcspn(d->specialization,"\n")] = 0;
+
+    printf("Enter Time Schedule (e.g., 10am-2pm): ");
+    fgets(d->timeSchedule, MAX_LEN, stdin);
+    d->timeSchedule[strcspn(d->timeSchedule,"\n")] = 0;
+
+    printf("Enter Consultation Charge: ");
+    scanf("%d", &d->charge); while (getchar()!='\n');
+
+    sprintf(d->id, "D%03d", doctorCount + 1);
+    doctorCount++;
+
+    printf("Doctor added with ID: %s\n", d->id);
+}
+
+void viewDoctors(void) {
+    puts("\n--- List of Doctors ---");
+    if (doctorCount == 0) { puts("No doctors found."); return; }
+
+    printf("%-5s %-20s %-20s %-15s %s\n",
+           "No.","Name","Specialization","Time","Charge");
+    for (int i = 0; i < doctorCount; ++i)
+        printf("%-5d %-20s %-20s %-15s %d\n",
+               i+1, doctors[i].name, doctors[i].specialization,
+               doctors[i].timeSchedule, doctors[i].charge);
+}
+
+void initializeDoctors(void) {
+    strcpy(doctors[0].name,  "Dr. Azim");
+    strcpy(doctors[0].specialization, "Cardiologist");
+    strcpy(doctors[0].timeSchedule,   "10am-1pm");
+    doctors[0].charge = 800;
+    strcpy(doctors[0].id, "D001");
+
+    strcpy(doctors[1].name,  "Dr. Soha");
+    strcpy(doctors[1].specialization, "Dermatologist");
+    strcpy(doctors[1].timeSchedule,   "2pm-5pm");
+    doctors[1].charge = 600;
+    strcpy(doctors[1].id, "D002");
+
+    doctorCount = 2;
+}
+
+void billingMenu(void) {
+    if (doctorCount == 0) { puts("No doctors available."); return; }
+    if (appointmentCount >= MAX_APPOINTMENTS) {
+        puts("Appointment list full."); return;
+    }
+
+    struct Appointment *a = &appointments[appointmentCount];
+    viewDoctors();
+
+    int docChoice;
+    printf("Select Doctor No.: ");
+    if (scanf("%d", &docChoice) != 1 || docChoice < 1 || docChoice > doctorCount) {
+        puts("Invalid selection."); while (getchar()!='\n'); return;
+    }
+    while (getchar() != '\n');
+
+    printf("Enter Patient Name: ");
+    fgets(a->patientName, MAX_LEN, stdin);
+    a->patientName[strcspn(a->patientName, "\n")] = 0;
+
+    strcpy(a->patientUsername, currentUsername);
+
+    printf("Enter Disease / Problem: ");
+    fgets(a->disease, MAX_LEN, stdin);
+    a->disease[strcspn(a->disease, "\n")] = 0;
+
+    strcpy(a->doctorName, doctors[docChoice-1].name);
+    strcpy(a->time,       doctors[docChoice-1].timeSchedule);
+    a->charge =           doctors[docChoice-1].charge;
+
+    appointmentCount++;
+    saveAppointments();
+
+    printf("\n--- Bill / Appointment Slip ---\n");
+    printf("Patient   : %s\n", a->patientName);
+    printf("Problem   : %s\n", a->disease);
+    printf("Doctor    : %s\n", a->doctorName);
+    printf("Time Slot : %s\n", a->time);
+    printf("Charge    : %d BDT\n", a->charge);
+    puts("-------------------------------");
+    puts("Payment done. Appointment booked!");
+}
+
+void appointmentMenu(void) {
+    puts("\n--- Appointments ---");
+    if (appointmentCount == 0) { puts("No appointments yet."); return; }
+
+    printf("%-5s %-15s %-15s %-20s %-10s %s\n",
+           "No.","Patient","Doctor","Problem","Time","Charge");
+
+    for (int i = 0; i < appointmentCount; ++i) {
+        if (currentRole == 3 && strcmp(appointments[i].patientUsername, currentUsername) != 0)
+            continue;
+
+        printf("%-5d %-15s %-15s %-20s %-10s %d\n",
+               i+1, appointments[i].patientName,
+               appointments[i].doctorName,
+               appointments[i].disease,
+               appointments[i].time,
+               appointments[i].charge);
+    }
+}
+
+void saveUsers(void) {
+    FILE *f = fopen("users.txt", "w");
+    if (!f) return;
+
+    for (int i = 0; i < userCount; i++) {
+        fprintf(f, "%s %s %d %s\n",
+                users[i].username,
+                users[i].password,
+                users[i].role,
+                users[i].id);
+    }
+    fclose(f);
+}
+
+void loadUsers(void) {
+    FILE *f = fopen("users.txt", "r");
+    if (!f) return;
+
+    while (fscanf(f, "%s %s %d %s",
+                  users[userCount].username,
+                  users[userCount].password,
+                  &users[userCount].role,
+                  users[userCount].id) == 4) {
+        userCount++;
+    }
+    fclose(f);
+}
+
+void saveAppointments(void) {
+    FILE *f = fopen("appointments.txt", "w");
+    if (!f) return;
+
+    for (int i = 0; i < appointmentCount; i++) {
+        fprintf(f, "%s|%s|%s|%s|%s|%d\n",
+                appointments[i].patientName,
+                appointments[i].patientUsername,
+                appointments[i].disease,
+                appointments[i].doctorName,
+                appointments[i].time,
+                appointments[i].charge);
+    }
+    fclose(f);
+}
+
+void loadAppointments(void) {
+    FILE *f = fopen("appointments.txt", "r");
+    if (!f) return;
+
+    while (fscanf(f, "%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%d\n",
+                  appointments[appointmentCount].patientName,
+                  appointments[appointmentCount].patientUsername,
+                  appointments[appointmentCount].disease,
+                  appointments[appointmentCount].doctorName,
+                  appointments[appointmentCount].time,
+                  &appointments[appointmentCount].charge) == 6) {
+        appointmentCount++;
+    }
+    fclose(f);
+}
